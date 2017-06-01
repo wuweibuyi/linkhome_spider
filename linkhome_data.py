@@ -4,10 +4,15 @@ import re
 import random
 import MySQLdb
 from bs4 import BeautifulSoup
-import time
+import time , csv, codecs
+import sys
+
+#适配中文
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 class house():
-    def get_house(self):
+    def get_house(self,max_page):
         user_agent = [
             'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.87 Safari/537.36',
             'Mozilla/5.0 (X11; U; Linux x86_64; zh-CN; rv:1.9.2.10) Gecko/20100922 Ubuntu/10.10 (maverick) Firefox/3.6.10',
@@ -23,7 +28,7 @@ class house():
             'User-Agent': user_agent[random.randint(0, 5)]
         }
         list = []
-        for i in range(1, 16):
+        for i in range(1,max_page):
             if i==1:
                 url = 'https://bj.lianjia.com/xiaoqu/daxing/'
             else:
@@ -33,24 +38,38 @@ class house():
             html = r.text
             soup = BeautifulSoup(html)
 
+            #解析HTML正文，打印‘a’标签和‘span’标签对应的网页面输出
             for tag in soup.find('ul', class_='listContent').find_all('li', class_="clear xiaoquListItem"):
-                ss = []
-                for aa in tag.find_all('a'):
-                   # print aa.string
-                    ss.append(aa.string)
+                ss = ['time']
+                for title in tag.find('div',class_='title').find_all('a'):   #添加 小区名称 信息
+                    ss.append(title.string)
+                for house_info in tag.find('div',class_='houseInfo').find_all('a', attrs={"href":re.compile(r"https://bj.lianjia.com/\w+/c\d+.*")}):
+                    ss.append(house_info.string)
+                for total_price in tag.find('div',class_='totalPrice').find_all('span'):
+                    ss.append(total_price.string)
 
-                for bb in tag.find_all('span'):
-                  #  print bb.string
-                    ss.append(bb.string)
                 #print len(ss)
                 ss[0]=time.strftime("%Y-%m-%d",time.localtime(time.time()))
                 list.append(ss)
+        return list
 
+    def tofile(self,data_list):
+        with open('linkhome.csv','wb') as linkhomefile :
+            linkhd_write=csv.writer(linkhomefile,dialect='excel')
+            linkhomefile.write(codecs.BOM_UTF8)
+            for item in data_list :
+                for element in item :
+                    linkhomefile.write('%s,' % element)
+                linkhomefile.write('\n')
+
+
+'''     #输出到控制台
         for item in list:
             for element in item:
                 print element,
             print "\n"
-
+'''
 
 test = house()
-test.get_house()
+max_page=16
+test.tofile(test.get_house(max_page))
